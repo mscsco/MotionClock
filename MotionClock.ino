@@ -1,7 +1,14 @@
 // Motion Sensitive LCD Real-Time Clock/Alarm/Timer
 // by Mike Soniat (msoniat@gmail.com)
 // This sketch was created by integrating open source sketches from Adafruit and DFRobot.
-// 7/15/2012
+// 7/15/2012 Posted to Instructables/github
+// 7/29/2012 Fixed noon showing as 12am
+// 7/29/2012 Fixed displaying PMM; added space after "PM"
+// 7/29/2012 Added alarm set indicator
+// 7/29/2012 Validate alarm hours > 0 and < 13
+// 7/29/2012 Fixed allow alarm minutes to be 0
+// 7/29/2012 Added setDateTime feature
+// 7/29/2012 Added clearAlarm feature
 
 #include <Wire.h>
 #include <RTClib.h>
@@ -118,19 +125,28 @@ void digitalClockDisplay()
       lcd.setCursor(5,1);
     lcd.setCursor(4,1);
 
-    if(now.hour() > 12)
+    // 7/29/2012 Fixed noon showing as 12am
+    //    if(now.hour() > 12)
+    if(now.hour() > 11)
     {
       lcd.print(now.hour()-12, DEC);
       printDigits(now.minute());
       clockPM = true;
-      lcd.print(" PM");    
+      // 7/29/2012 Fixed displaying PMM; added space after "PM"
+      lcd.print(" PM "); 
+      // 7/29/2012 Added alarm set indicator
+      if (alarmSet)
+        lcd.print("*");
     }
     else
     {
       lcd.print(now.hour(), DEC);
       printDigits(now.minute());
       clockPM = false;      
-      lcd.print(" AM");
+      lcd.print(" AM ");
+      // 7/29/2012 Added alarm set indicator
+      if (alarmSet)
+        lcd.print("*");      
     }
   }
 
@@ -179,7 +195,8 @@ void selectMenu()
       if (menuOption == 2)
       {
         lcdClear();
-        lcd.print("Set Alarm");            
+        // 7/29/2012 Added clearAlarm feature
+        lcd.print("Set/Clear Alarm");            
       }
       if (menuOption == 3)
       {
@@ -199,17 +216,88 @@ void selectMenu()
       if (menuOption == 2)
       {
         timedBeep(shortBeep,1);
-        setAlarm();
+        // 7/29/2012 Added clearAlarm feature
+        //check for existing alarm
+        if (alarmSet)
+        {
+          clearAlarm();
+        }
+        else
+        {
+          setAlarm();
+        }
         return;
       }
       if (menuOption == 3)
       {
         timedBeep(shortBeep,1);
+        // 7/29/2012 Added setDateTime feature
+        setDateTime();
         return;
       } 
     }
   }
 }  
+
+// 7/29/2012 Added clearAlarm feature
+void clearAlarm()
+{
+  int button = 0;
+  bool clearIt = true;
+  char *ampm = "AM";
+
+  lcdClear();
+  lcd.print("Alarm Set For");
+  lcd.setCursor(0,1);
+  lcd.print(alarmHours);   
+  lcd.print(":");
+  lcd.print(alarmMinutes);
+  lcd.print(" ");
+  if (alarmPM == 1)
+    ampm = "PM";
+  lcd.print(ampm);
+  delay(2000);
+  lcdClear();
+  lcd.print("Clear Alarm?");
+  lcd.setCursor(0,1);
+  lcd.print("Yes");  
+
+  while (button != btnSELECT)
+  {
+    button = read_LCD_buttons();
+    if (button == btnUP)
+    {
+      timedBeep(shortBeep,1);
+      clearIt = !clearIt;
+    }
+    if (button == btnDOWN)
+    {
+      timedBeep(shortBeep,1);
+      clearIt = !clearIt;
+    }
+    if (button == btnRIGHT)
+    {
+      timedBeep(shortBeep,1);
+      alarmSet = !clearIt;
+      if (clearIt)
+      {
+        lcdClear();
+        timedBeep(shortBeep,2);
+        lcd.print("Alarm Cleared!");
+        delay(2000);
+      }
+      return; 
+    }
+    lcd.setCursor(0,1);
+    if (clearIt)
+    {
+      lcd.print("Yes"); 
+    }
+    else{
+      lcd.print("No ");
+    }
+  }   
+}
 
 void minuteTimer()
 {
@@ -229,12 +317,14 @@ void setAlarm()
 {
   int button = 0;
   char *ampm = "AM";
-  alarmHours = getTimerMinutes("Set Hour", alarmHours);  
-  if (alarmHours > 0)
+  alarmHours = getTimerMinutes("Set Alarm Hour", alarmHours);  
+  // 7/29/2012 Validate alarm hours > 0 and < 13
+  if (alarmHours > 0 && alarmHours < 13)
   {
     alarmMinutes = getTimerMinutes("Set Minutes", alarmMinutes);
-
-    if (alarmMinutes > 0)
+    // 7/29/2012 Fixed allow alarm minutes to be 0
+    //if (alarmMinutes > 0)
+    if (alarmMinutes < 60)
     {
       lcdClear();
       lcd.print("Toggle AM/PM");
@@ -294,6 +384,109 @@ void setAlarm()
   }
 }
 
+// 7/29/2012 Added setDateTime feature
+void setDateTime()
+{
+  int button = 0;
+  char *ampm = "AM";
+
+  //get month
+  int setMonth = getTimerMinutes("Set Month", lastMonth);
+  if (setMonth > 0 && setMonth < 13)
+  {
+    //get day
+    int setDay = getTimerMinutes("Set Day", 0);
+    if (setDay > 0 && setDay < 32)
+    {
+      //get year
+      int setYear = getTimerMinutes("Set Year", lastYear);
+      if (setYear > 2000 && setYear < 3000)
+      {
+        //get hour
+        int setHour = getTimerMinutes("Set Hour", lastHour);
+        if (setHour > 0 && setHour < 13)
+        {
+          //get minutes
+          int setMinute = getTimerMinutes("Set Minute", 0);
+          if (setMinute < 60)
+          {
+            //get ampm
+            lcdClear();
+            lcd.print("Toggle AM/PM");
+            lcd.setCursor(0,1);
+            //display alarm time
+            lcd.print(setHour);       
+            lcd.print(":");
+            if (setMinute < 10)
+              lcd.print("0");
+            lcd.print(setMinute);
+            lcd.setCursor(6,1);
+            lcd.print(ampm);
+            //get AM/PM
+            button = 6;
+            while (button != btnSELECT && button != btnRIGHT)
+            {
+              button = read_LCD_buttons();
+              if (button == btnUP || button == btnDOWN)
+              {
+                timedBeep(shortBeep,1);
+                if (ampm == "AM")
+                {
+                  ampm = "PM";
+                }
+                else
+                {
+                  ampm = "AM";
+                }
+                lcd.setCursor(6,1);
+                lcd.print(ampm);         
+              }
+            }
+            if (button == btnRIGHT)
+            {
+              timedBeep(shortBeep,1);
+              if (ampm == "PM")
+                setHour = setHour + 12;
+              RTC.adjust(DateTime(setYear,setMonth,setDay,setHour,setMinute));
+
+              lcd.setCursor(0,0);
+              lcd.print("Saving...");
+              delay(1000);
+              return;       
+            }
+            else
+            {
+              timerCancelled("");
+              return;  
+            }  
+          }
+          else
+          {
+            timerCancelled("");     
+          }    
+        }     
+        else
+        {
+          timerCancelled("");       
+        }
+      }
+      else
+      {
+        timerCancelled("");     
+      }    
+    }     
+    else
+    {
+      timerCancelled("");       
+    }
+  }
+  else
+  {
+    timerCancelled("");       
+  }
+
+}
+
 // read the buttons
 int read_LCD_buttons()
 {
@@ -312,7 +505,6 @@ int read_LCD_buttons()
 
 void timedCountDown(int secondCount, char countLabel[])
 {
-
   long seconds = 0;
   long minutes = 0; 
 
@@ -446,6 +638,15 @@ void setOffAlarm()
   timerCancelled("Alarm"); 
   alarmSet = false;  
 }
+
+
+
+
+
+
+
+
+
 
 
 
