@@ -11,3 +11,6 @@ UPDATES:
 7/29/2012 Fixed allow alarm minutes to be 0
 7/29/2012 Added setDateTime feature
 7/29/2012 Added clearAlarm feature
+8/1/2012 Fixed default day and hour settings on set date/time
+8/1/2012 Pass maxCount to getTimerMinutes
+8/1/2012 Fixed alarm set PM

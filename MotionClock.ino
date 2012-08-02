@@ -1,7 +1,7 @@
 // Motion Sensitive LCD Real-Time Clock/Alarm/Timer
 // by Mike Soniat (msoniat@gmail.com)
 // This sketch was created by integrating open source sketches from Adafruit and DFRobot.
-// 7/15/2012 Posted to Instructables/github
+// 7/15/2012 Posted to github
 // 7/29/2012 Fixed noon showing as 12am
 // 7/29/2012 Fixed displaying PMM; added space after "PM"
 // 7/29/2012 Added alarm set indicator
@@ -9,6 +9,9 @@
 // 7/29/2012 Fixed allow alarm minutes to be 0
 // 7/29/2012 Added setDateTime feature
 // 7/29/2012 Added clearAlarm feature
+// 8/1/2012 Fixed default day and hour settings on set date/time
+// 8/1/2012 Pass maxCount to getTimerMinutes
+// 8/1/2012 Fixed alarm set PM
 
 #include <Wire.h>
 #include <RTClib.h>
@@ -34,6 +37,8 @@ int alarmMinutes = 0;
 bool alarmPM = 0;
 bool alarmSet = 0;
 bool backLightOn = 1;
+// 8/1/2012 Fixed default day and hour settings on set date/time
+bool resetClock = false;
 
 // define constants
 const int backLight = 10; 
@@ -99,8 +104,8 @@ void printDigits(byte digits)
 void digitalClockDisplay()
 {
   bool clockPM = 0;
-
-  if (now.day() != lastDay)
+  // 8/1/2012 Fixed default day and hour settings on set date/time
+  if (now.day() != lastDay || resetClock == true)
   {
     lcd.begin(16,2);
     lcd.setCursor(3,0);
@@ -118,8 +123,8 @@ void digitalClockDisplay()
     int thisYear = now.year();
     lcd.print(thisYear, DEC);
   }
-
-  if (now.minute() != lastMinute)
+  // 8/1/2012 Fixed default day and hour settings on set date/time
+  if (now.minute() != lastMinute || resetClock == true)
   {
     if(now.hour() < 10)
       lcd.setCursor(5,1);
@@ -150,6 +155,9 @@ void digitalClockDisplay()
     }
   }
 
+  // 8/1/2012 Fixed default day and hour settings on set date/time
+  resetClock = false;
+
   lastDay = now.day();
   lastMonth = now.month();
   lastYear = now.year();
@@ -159,7 +167,8 @@ void digitalClockDisplay()
   //check for alarm
   if (alarmSet)
   {
-    if (alarmHours == lastHour && alarmMinutes == lastMinute && alarmPM == clockPM)
+    // 8/1/2012 Fixed alarm set PM
+    if (alarmHours == lastHour && alarmMinutes == lastMinute)
     {
       //sound alarm
       setOffAlarm();
@@ -301,7 +310,8 @@ void clearAlarm()
 
 void minuteTimer()
 {
-  int timerMinutes = getTimerMinutes("Set Minutes", 0);
+  // 8/1/2012 Pass maxCount to getTimerMinutes
+  int timerMinutes = getTimerMinutes("Set Minutes", 0, 60);
   if (timerMinutes > 0)
   {
     timedCountDown(timerMinutes*60, "Minute Timer");
@@ -317,11 +327,13 @@ void setAlarm()
 {
   int button = 0;
   char *ampm = "AM";
-  alarmHours = getTimerMinutes("Set Alarm Hour", alarmHours);  
+  // 8/1/2012 Pass maxCount to getTimerMinutes
+  alarmHours = getTimerMinutes("Set Alarm Hour", alarmHours, 12);  
   // 7/29/2012 Validate alarm hours > 0 and < 13
   if (alarmHours > 0 && alarmHours < 13)
   {
-    alarmMinutes = getTimerMinutes("Set Minutes", alarmMinutes);
+    // 8/1/2012 Pass maxCount to getTimerMinutes
+    alarmMinutes = getTimerMinutes("Set Minutes", alarmMinutes, 59);
     // 7/29/2012 Fixed allow alarm minutes to be 0
     //if (alarmMinutes > 0)
     if (alarmMinutes < 60)
@@ -354,7 +366,7 @@ void setAlarm()
             ampm = "AM";
           }
           lcd.setCursor(6,1);
-          lcd.print(ampm);         
+          lcd.print(ampm);  
         }
       }
 
@@ -362,6 +374,8 @@ void setAlarm()
       {
         timedBeep(shortBeep,1);
         alarmSet = true; 
+        // 8/1/2012 Fixed alarm set PM
+        if (ampm == "PM") alarmHours += 12;        
         lcd.setCursor(0,0);
         lcd.print("Alarm Set for");
         delay(1000);
@@ -391,23 +405,37 @@ void setDateTime()
   char *ampm = "AM";
 
   //get month
-  int setMonth = getTimerMinutes("Set Month", lastMonth);
+  // 8/1/2012 Pass maxCount to getTimerMinutes
+  int setMonth = getTimerMinutes("Set Month", lastMonth, 12);
   if (setMonth > 0 && setMonth < 13)
   {
     //get day
-    int setDay = getTimerMinutes("Set Day", 0);
+    // 8/1/2012 Fixed default day and hour settings on set date/time
+    // 8/1/2012 Pass maxCount to getTimerMinutes
+    int setDay = getTimerMinutes("Set Day", lastDay, 31);
     if (setDay > 0 && setDay < 32)
     {
       //get year
-      int setYear = getTimerMinutes("Set Year", lastYear);
+      // 8/1/2012 Pass maxCount to getTimerMinutes
+      int setYear = getTimerMinutes("Set Year", lastYear, 2999);
       if (setYear > 2000 && setYear < 3000)
       {
         //get hour
-        int setHour = getTimerMinutes("Set Hour", lastHour);
+        int thisHour = lastHour;
+        // 8/1/2012 Fixed default day and hour settings on set date/time
+        if (thisHour > 12) 
+        {
+          thisHour -= 12;
+          ampm = "PM";
+        }
+        // 8/1/2012 Pass maxCount to getTimerMinutes
+        int setHour = getTimerMinutes("Set Hour", thisHour, 12);
         if (setHour > 0 && setHour < 13)
         {
           //get minutes
-          int setMinute = getTimerMinutes("Set Minute", 0);
+          // 8/1/2012 Fixed default day and hour settings on set date/time
+          // 8/1/2012 Pass maxCount to getTimerMinutes
+          int setMinute = getTimerMinutes("Set Minute", lastMinute, 59);
           if (setMinute < 60)
           {
             //get ampm
@@ -450,7 +478,8 @@ void setDateTime()
               RTC.adjust(DateTime(setYear,setMonth,setDay,setHour,setMinute));
 
               lcd.setCursor(0,0);
-              lcd.print("Saving...");
+              // 8/1/2012 Fixed default day and hour settings on set date/time
+              lcd.print("Saving...     ");
               delay(1000);
               return;       
             }
@@ -544,7 +573,8 @@ void timedCountDown(int secondCount, char countLabel[])
   timedBeep(longBeep,3);
 }
 
-int getTimerMinutes(char timerText[], int startNum)
+// 8/1/2012 Pass maxCount to getTimerMinutes
+int getTimerMinutes(char timerText[], int startNum, int maxCount)
 {
   int minutes = startNum;
   int button = 0;
@@ -553,27 +583,48 @@ int getTimerMinutes(char timerText[], int startNum)
   lcd.setCursor(0,1);
   lcd.print(minutes);   
 
-  Serial.println("getTimerMinutes");
-
   while (button != btnSELECT)
   {
     button = read_LCD_buttons();
     Serial.println(button);
+    // 8/1/2012 Pass maxCount to getTimerMinutes
     if (button == btnLEFT)
     {
-      timedBeep(shortBeep,1);
-      minutes = minutes + 10;
+      if ((minutes + 10) <= maxCount)
+      {
+        timedBeep(shortBeep,1);
+        minutes = minutes + 10;
+      }
+      else
+      {
+        timedBeep(shortBeep,2); 
+      }
     }
+    // 8/1/2012 Pass maxCount to getTimerMinutes
     if (button == btnUP)
     {
-      timedBeep(shortBeep,1);
-      minutes++;
+      if (minutes < maxCount)
+      {
+        timedBeep(shortBeep,1);
+        minutes++;
+      }
+      else
+      {
+        timedBeep(shortBeep,2); 
+      }
     }
-    if (button == btnDOWN && minutes > 0)
+    if (button == btnDOWN)
     {
-      timedBeep(shortBeep,1);
-      minutes--;
-    }
+      if (minutes > 0)
+      {
+        timedBeep(shortBeep,1);
+        minutes--;
+      }
+      else
+      {
+        timedBeep(shortBeep,2); 
+      }   
+    } 
     if (button == btnRIGHT)
     {
       timedBeep(shortBeep,1);
@@ -598,8 +649,10 @@ void timedBeep(int beepTime, int beepCount)
 }
 
 void lcdClear(){
-  lastDay = 0;
-  lastMinute = 0;
+  // 8/1/2012 Fixed default day and hour settings on set date/time
+  //lastDay = 0;
+  //lastMinute = 0;
+  resetClock = true;
   lcd.clear();
   lcd.begin(16,2);
   lcd.setCursor(0,0); 
@@ -638,6 +691,13 @@ void setOffAlarm()
   timerCancelled("Alarm"); 
   alarmSet = false;  
 }
+
+
+
+
+
+
+
 
 
 
