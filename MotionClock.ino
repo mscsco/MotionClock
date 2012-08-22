@@ -12,6 +12,7 @@
 // 8/1/2012 Fixed default day and hour settings on set date/time
 // 8/1/2012 Pass maxCount to getTimerMinutes
 // 8/1/2012 Fixed alarm set PM
+// 8/19/2013 Fixed noon showing as 0:00pm
 
 #include <Wire.h>
 #include <RTClib.h>
@@ -134,7 +135,14 @@ void digitalClockDisplay()
     //    if(now.hour() > 12)
     if(now.hour() > 11)
     {
-      lcd.print(now.hour()-12, DEC);
+      // 8/19/2013 Fixed noon showing as 0:00pm
+      if (now.hour() == 12)
+      {
+        lcd.print(now.hour(), DEC);
+      }
+      else{
+        lcd.print(now.hour()-12, DEC);
+      }
       printDigits(now.minute());
       clockPM = true;
       // 7/29/2012 Fixed displaying PMM; added space after "PM"
@@ -691,6 +699,7 @@ void setOffAlarm()
   timerCancelled("Alarm"); 
   alarmSet = false;  
 }
+
 
 
 

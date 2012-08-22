@@ -13,3 +13,4 @@ UPDATES:
 8/1/2012 Fixed default day and hour settings on set date/time
 8/1/2012 Pass maxCount to getTimerMinutes
 8/1/2012 Fixed alarm set PM
+8/19/2013 Fixed noon showing as 0:00pm
